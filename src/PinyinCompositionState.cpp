@@ -63,20 +63,36 @@ std::wstring PinyinCompositionState::GetCurrentSyllable() const {
     return _syllables[_currentSyllableIndex];
 }
 
-std::wstring PinyinCompositionState::BuildDisplayText() const {
+std::wstring PinyinCompositionState::BuildDisplayText(bool insertSyllableSpaces) const {
     std::wstring result;
 
-    for (const std::wstring& selected : _selectedTexts) {
-        result += selected;
-    }
+    if (insertSyllableSpaces && !_selectedTexts.empty()) {
+        for (size_t i = 0; i < _selectedTexts.size(); ++i) {
+            if (!result.empty()) {
+                result += L' ';
+            }
+            result += _selectedTexts[i];
+        }
 
-    for (size_t i = _selectedTexts.size(); i < _syllables.size(); ++i) {
-        result += _syllables[i];
+        for (size_t i = _selectedTexts.size(); i < _syllables.size(); ++i) {
+            if (!result.empty()) {
+                result += L' ';
+            }
+            result += _syllables[i];
+        }
+    } else {
+        for (const std::wstring& selected : _selectedTexts) {
+            result += selected;
+        }
+
+        for (size_t i = _selectedTexts.size(); i < _syllables.size(); ++i) {
+            result += _syllables[i];
+        }
     }
 
     return result.empty() ? _rawInput : result;
 }
 
-std::wstring PinyinCompositionState::BuildCommittedText() const {
-    return BuildDisplayText();
+std::wstring PinyinCompositionState::BuildCommittedText(bool insertSyllableSpaces) const {
+    return BuildDisplayText(insertSyllableSpaces);
 }

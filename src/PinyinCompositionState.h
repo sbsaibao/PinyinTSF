@@ -20,8 +20,8 @@ public:
     bool SelectCurrentSyllable(const std::wstring& selectedText);
 
     std::wstring GetCurrentSyllable() const;
-    std::wstring BuildDisplayText() const;
-    std::wstring BuildCommittedText() const;
+    std::wstring BuildDisplayText(bool insertSyllableSpaces = true) const;
+    std::wstring BuildCommittedText(bool insertSyllableSpaces = true) const;
 
 private:
     std::wstring _rawInput;

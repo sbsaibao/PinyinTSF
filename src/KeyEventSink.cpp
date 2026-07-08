@@ -1,6 +1,7 @@
 ﻿#include "PinyinTextService.h"
 #include "EditSession.h"
 #include "KeyEventLogic.h"
+#include "SettingsManager.h"
 
 namespace {
 bool IsKeyDown(int vkey) {
@@ -195,6 +196,7 @@ STDMETHODIMP CPinyinTextService::OnPreservedKey(ITfContext* pContext, REFGUID rg
 // _HandleCharInput - User typed a letter key
 // ================================================================
 void CPinyinTextService::_HandleCharInput(ITfContext* pContext, wchar_t ch) {
+    const bool insertSyllableSpaces = SettingsManager::Instance().GetInsertSyllableSpaces();
     _compositionState.AppendChar(ch);
 
     if (!_pComposition) {
@@ -203,7 +205,7 @@ void CPinyinTextService::_HandleCharInput(ITfContext* pContext, wchar_t ch) {
     }
 
     _compositionState.Rebuild(*_pPinyinEngine);
-    _compositionBuffer = _compositionState.BuildDisplayText();
+    _compositionBuffer = _compositionState.BuildDisplayText(insertSyllableSpaces);
 
     // Update the inline composition text
     _UpdateComposition(pContext);
@@ -220,12 +222,13 @@ void CPinyinTextService::_HandleCharInput(ITfContext* pContext, wchar_t ch) {
 // ================================================================
 void CPinyinTextService::_HandleCandidateSelection(ITfContext* pContext, int index) {
     if (index >= 0 && index < (int)_candidates.size()) {
+        const bool insertSyllableSpaces = SettingsManager::Instance().GetInsertSyllableSpaces();
         if (_compositionState.HasPendingSyllable()) {
             bool complete = _compositionState.SelectCurrentSyllable(_candidates[index]);
-            _compositionBuffer = _compositionState.BuildDisplayText();
+            _compositionBuffer = _compositionState.BuildDisplayText(insertSyllableSpaces);
 
             if (complete) {
-                _CommitText(pContext, _compositionState.BuildCommittedText());
+                _CommitText(pContext, _compositionState.BuildCommittedText(insertSyllableSpaces));
             } else {
                 _UpdateComposition(pContext);
                 _UpdateCandidates();
@@ -242,6 +245,7 @@ void CPinyinTextService::_HandleCandidateSelection(ITfContext* pContext, int ind
 // ================================================================
 void CPinyinTextService::_HandleBackspace(ITfContext* pContext) {
     if (!_compositionState.HasInput()) return;
+    const bool insertSyllableSpaces = SettingsManager::Instance().GetInsertSyllableSpaces();
 
     _compositionState.Backspace();
 
@@ -251,7 +255,7 @@ void CPinyinTextService::_HandleBackspace(ITfContext* pContext) {
     } else {
         // Update composition text and candidates
         _compositionState.Rebuild(*_pPinyinEngine);
-        _compositionBuffer = _compositionState.BuildDisplayText();
+        _compositionBuffer = _compositionState.BuildDisplayText(insertSyllableSpaces);
         _UpdateComposition(pContext);
         _UpdateCandidates();
         _UpdateCandidateWindow(pContext);
@@ -269,7 +273,8 @@ void CPinyinTextService::_HandleEscape(ITfContext* pContext) {
 // _HandleEnter - Commit the raw pinyin text as-is
 // ================================================================
 void CPinyinTextService::_HandleEnter(ITfContext* pContext) {
+    const bool insertSyllableSpaces = SettingsManager::Instance().GetInsertSyllableSpaces();
     _CommitText(pContext, _compositionState.HasInput()
-        ? _compositionState.BuildCommittedText()
+        ? _compositionState.BuildCommittedText(insertSyllableSpaces)
         : _compositionBuffer);
 }

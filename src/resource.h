@@ -24,3 +24,4 @@
 #define IDC_THEME_SYSTEM        1008
 #define IDC_THEME_LIGHT         1009
 #define IDC_THEME_DARK          1010
+#define IDC_INSERT_SPACES       1011

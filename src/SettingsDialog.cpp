@@ -235,6 +235,7 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
         SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETRANGE, TRUE, MAKELONG(MIN_FONT_SIZE, MAX_FONT_SIZE));
         SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETPOS, TRUE, (LPARAM)sm.GetFontSize());
         SetDialogThemeMode(hDlg, sm.GetThemeMode());
+        CheckDlgButton(hDlg, IDC_INSERT_SPACES, sm.GetInsertSyllableSpaces() ? BST_CHECKED : BST_UNCHECKED);
 
         _UpdateLabels(hDlg);
         return TRUE;
@@ -271,6 +272,7 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
             sm.SetScale(scalePos / 100.0f);
             sm.SetFontSize(fontPos);
             sm.SetThemeMode(GetDialogThemeMode(hDlg));
+            sm.SetInsertSyllableSpaces(IsDlgButtonChecked(hDlg, IDC_INSERT_SPACES) == BST_CHECKED);
             sm.Save();
 
             // Broadcast change to all CandidateWindow instances
@@ -284,6 +286,7 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
             SendDlgItemMessageW(hDlg, IDC_SCALE_TRACKBAR, TBM_SETPOS, TRUE, 100);
             SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETPOS, TRUE, DEFAULT_FONT_SIZE);
             SetDialogThemeMode(hDlg, SettingsManager::ThemeMode::FollowSystem);
+            CheckDlgButton(hDlg, IDC_INSERT_SPACES, DEFAULT_INSERT_SYLLABLE_SPACES ? BST_CHECKED : BST_UNCHECKED);
             _UpdateLabels(hDlg);
             InvalidateRect(GetDlgItem(hDlg, IDC_PREVIEW), nullptr, FALSE);
             return TRUE;

@@ -31,6 +31,7 @@
 
 #define DEFAULT_SCALE           1.0f
 #define DEFAULT_FONT_SIZE       13
+#define DEFAULT_INSERT_SYLLABLE_SPACES true
 #define MIN_SCALE               0.5f
 #define MAX_SCALE               3.0f
 #define MIN_FONT_SIZE           10
@@ -55,6 +56,8 @@ public:
     void  SetFontSize(int fs);
     ThemeMode GetThemeMode() const { return _themeMode; }
     void SetThemeMode(ThemeMode mode) { _themeMode = NormalizeThemeModeValue((DWORD)mode); }
+    bool GetInsertSyllableSpaces() const { return _insertSyllableSpaces; }
+    void SetInsertSyllableSpaces(bool enabled) { _insertSyllableSpaces = enabled; }
 
     static ThemeMode NormalizeThemeModeValue(DWORD value) {
         switch (value) {
@@ -79,6 +82,10 @@ public:
         default:
             return systemDark;
         }
+    }
+
+    static bool NormalizeInsertSyllableSpacesValue(DWORD value) {
+        return value != 0;
     }
 
     // Computed layout values
@@ -115,6 +122,7 @@ private:
     float _scale;
     int   _fontSize;
     ThemeMode _themeMode;
+    bool _insertSyllableSpaces;
 };
 
 #endif // SETTINGS_MANAGER_H

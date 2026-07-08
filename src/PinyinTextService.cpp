@@ -1,4 +1,5 @@
 #include "PinyinTextService.h"
+#include "SettingsManager.h"
 #include "TrayIcon.h"
 
 // ================================================================
@@ -198,6 +199,7 @@ void CPinyinTextService::_EndComposition() {
 // ================================================================
 void CPinyinTextService::_UpdateCandidates() {
     if (!_pPinyinEngine) return;
+    const bool insertSyllableSpaces = SettingsManager::Instance().GetInsertSyllableSpaces();
 
     std::wstring syllable = _compositionState.GetCurrentSyllable();
     if (!syllable.empty()) {
@@ -209,7 +211,7 @@ void CPinyinTextService::_UpdateCandidates() {
 
     if (_pCandidateWindow) {
         _pCandidateWindow->SetPinyinText(_compositionState.HasInput()
-            ? _compositionState.BuildDisplayText()
+            ? _compositionState.BuildDisplayText(insertSyllableSpaces)
             : _compositionBuffer);
         _pCandidateWindow->SetCandidates(_candidates);
         _pCandidateWindow->SetSelection(0);

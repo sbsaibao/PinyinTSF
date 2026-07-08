@@ -103,6 +103,10 @@ int wmain() {
         SettingsManager::ResolveEffectiveDarkMode(SettingsManager::ThemeMode::Dark, false), true);
     ExpectBool(L"invalid stored theme falls back to follow system",
         SettingsManager::NormalizeThemeModeValue(99) == SettingsManager::ThemeMode::FollowSystem, true);
+    ExpectBool(L"insert spaces setting defaults on for nonzero value",
+        SettingsManager::NormalizeInsertSyllableSpacesValue(99), true);
+    ExpectBool(L"insert spaces setting turns off for zero value",
+        SettingsManager::NormalizeInsertSyllableSpacesValue(0), false);
 
     ExpectVectorEqual(L"segments nihao", engine.SegmentInput(L"nihao"), { L"ni", L"hao" });
     ExpectVectorEqual(L"segments zhinengti", engine.SegmentInput(L"zhinengti"), { L"zhi", L"neng", L"ti" });
@@ -128,12 +132,14 @@ int wmain() {
 
     bool complete = state.SelectCurrentSyllable(L"n\x01D0");
     ExpectEqual(L"first selection not complete", complete ? L"true" : L"false", L"false");
-    ExpectEqual(L"display after first selection", state.BuildDisplayText(), L"n\x01D0" L"hao");
+    ExpectEqual(L"display after first selection", state.BuildDisplayText(), L"n\x01D0" L" hao");
+    ExpectEqual(L"display after first selection without spaces", state.BuildDisplayText(false), L"n\x01D0" L"hao");
     ExpectEqual(L"current syllable advances to hao", state.GetCurrentSyllable(), L"hao");
 
     complete = state.SelectCurrentSyllable(L"h\x01CEo");
     ExpectEqual(L"second selection completes", complete ? L"true" : L"false", L"true");
-    ExpectEqual(L"commit after all selections", state.BuildCommittedText(), L"n\x01D0" L"h\x01CEo");
+    ExpectEqual(L"commit after all selections", state.BuildCommittedText(), L"n\x01D0" L" h\x01CEo");
+    ExpectEqual(L"commit after all selections without spaces", state.BuildCommittedText(false), L"n\x01D0" L"h\x01CEo");
 
     PinyinCompositionState partial;
     partial.AppendChar(L'z');
@@ -148,7 +154,8 @@ int wmain() {
     partial.Rebuild(engine);
     ExpectEqual(L"zhinengti first syllable", partial.GetCurrentSyllable(), L"zhi");
     partial.SelectCurrentSyllable(L"zh\x00EC");
-    ExpectEqual(L"zhinengti display after one selection", partial.BuildDisplayText(), L"zh\x00EC" L"nengti");
+    ExpectEqual(L"zhinengti display after one selection", partial.BuildDisplayText(), L"zh\x00EC" L" neng ti");
+    ExpectEqual(L"zhinengti display after one selection without spaces", partial.BuildDisplayText(false), L"zh\x00EC" L"nengti");
     ExpectEqual(L"zhinengti second syllable", partial.GetCurrentSyllable(), L"neng");
 
     if (g_failures != 0) {

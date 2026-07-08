@@ -4,6 +4,7 @@ SettingsManager::SettingsManager()
     : _scale(DEFAULT_SCALE)
     , _fontSize(DEFAULT_FONT_SIZE)
     , _themeMode(ThemeMode::FollowSystem)
+    , _insertSyllableSpaces(DEFAULT_INSERT_SYLLABLE_SPACES)
 {
 }
 
@@ -49,6 +50,12 @@ void SettingsManager::Load() {
             _themeMode = NormalizeThemeModeValue(dwVal);
         }
 
+        dwSize = sizeof(DWORD);
+        if (RegQueryValueExW(hKey, L"InsertSyllableSpaces", nullptr, &dwType, (LPBYTE)&dwVal, &dwSize) == ERROR_SUCCESS
+            && dwType == REG_DWORD) {
+            _insertSyllableSpaces = NormalizeInsertSyllableSpacesValue(dwVal);
+        }
+
         RegCloseKey(hKey);
     }
 }
@@ -65,6 +72,9 @@ void SettingsManager::Save() {
 
         DWORD dwThemeMode = (DWORD)_themeMode;
         RegSetValueExW(hKey, L"ThemeMode", 0, REG_DWORD, (const BYTE*)&dwThemeMode, sizeof(DWORD));
+
+        DWORD dwInsertSyllableSpaces = _insertSyllableSpaces ? 1u : 0u;
+        RegSetValueExW(hKey, L"InsertSyllableSpaces", 0, REG_DWORD, (const BYTE*)&dwInsertSyllableSpaces, sizeof(DWORD));
 
         RegCloseKey(hKey);
     }
