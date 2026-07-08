@@ -56,6 +56,9 @@
     <ClCompile Include="src\CandidateWindow.cpp">
       <Filter>Source Files\UI</Filter>
     </ClCompile>
+    <ClCompile Include="src\CandidateTheme.cpp">
+      <Filter>Source Files\UI</Filter>
+    </ClCompile>
     <ClCompile Include="src\PinyinEngine.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
@@ -89,6 +92,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\CandidateWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CandidateTheme.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\PinyinEngine.h">

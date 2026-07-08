@@ -6,18 +6,8 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include "CandidateTheme.h"
 #include "SettingsManager.h"
-
-// ================================================================
-// Colors
-// ================================================================
-#define CW_COLOR_BG               RGB(255, 255, 255)   // #FFFFFF
-#define CW_COLOR_CONTAINER        RGB(255, 255, 255)   // Figma: white at 92%
-#define CW_COLOR_CONTAINER_BORDER RGB(235, 235, 235)   // Figma: black at 8% over white
-#define CW_COLOR_SELECTED_BG      RGB(232, 244, 255)   // Figma: #3DA3FF at 12% over white
-#define CW_COLOR_SELECTED_BORDER  RGB(232, 244, 255)   // Borderless selected chip
-#define CW_COLOR_TEXT_PRIMARY     RGB(26, 26, 26)      // Figma: #1A1A1A
-#define CW_COLOR_TEXT_SECONDARY   RGB(153, 153, 153)   // Figma: #999999
 
 // ================================================================
 // CCandidateWindow - Win32 popup candidate window
@@ -69,6 +59,9 @@ private:
     void _Invalidate();
     void _UpdateWindowRgn();
     void _CreateFonts();
+    void _RefreshThemeResources();
+    void _ReleaseThemeResources();
+    int  _GetShadowPadding() const;
 
     // Members
     HWND        _hwnd;
@@ -85,6 +78,8 @@ private:
     HBRUSH      _hBgBrush;
     HBRUSH      _hContainerBrush;
     HBRUSH      _hSelectedBrush;
+    CandidateThemePalette _palette;
+    bool        _darkMode;
 
     std::wstring                _pinyinText;
     std::vector<std::wstring>   _candidates;

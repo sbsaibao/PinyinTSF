@@ -1,4 +1,5 @@
 #include "SettingsDialog.h"
+#include "CandidateTheme.h"
 #include "SettingsManager.h"
 #include "resource.h"
 #include <commctrl.h>
@@ -7,6 +8,28 @@
 #pragma comment(lib, "comctl32.lib")
 
 HWND SettingsDialog::_hDlgOpen = nullptr;
+
+namespace {
+    SettingsManager::ThemeMode GetDialogThemeMode(HWND hDlg) {
+        if (IsDlgButtonChecked(hDlg, IDC_THEME_LIGHT) == BST_CHECKED) {
+            return SettingsManager::ThemeMode::Light;
+        }
+        if (IsDlgButtonChecked(hDlg, IDC_THEME_DARK) == BST_CHECKED) {
+            return SettingsManager::ThemeMode::Dark;
+        }
+        return SettingsManager::ThemeMode::FollowSystem;
+    }
+
+    void SetDialogThemeMode(HWND hDlg, SettingsManager::ThemeMode mode) {
+        int controlId = IDC_THEME_SYSTEM;
+        if (mode == SettingsManager::ThemeMode::Light) {
+            controlId = IDC_THEME_LIGHT;
+        } else if (mode == SettingsManager::ThemeMode::Dark) {
+            controlId = IDC_THEME_DARK;
+        }
+        CheckRadioButton(hDlg, IDC_THEME_SYSTEM, IDC_THEME_DARK, controlId);
+    }
+}
 
 void SettingsDialog::Show(HINSTANCE hInst, HWND hwndParent) {
     // Only one settings dialog at a time
@@ -42,6 +65,8 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
     int scalePos = (int)SendDlgItemMessageW(hDlg, IDC_SCALE_TRACKBAR, TBM_GETPOS, 0, 0);
     float scale = scalePos / 100.0f;
     int fontPos = (int)SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_GETPOS, 0, 0);
+    bool darkMode = CandidateTheme::ResolveDarkMode(GetDialogThemeMode(hDlg));
+    CandidateThemePalette palette = CandidateTheme::GetPalette(darkMode);
 
     int barHeight = (int)(BASE_WINDOW_HEIGHT * scale + 0.5f);
 
@@ -89,14 +114,13 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
     int dy = offsetY - rcPreview.top;
 
     // White background
-    HBRUSH hBgBrush = CreateSolidBrush(RGB(255, 255, 255));
+    HBRUSH hBgBrush = CreateSolidBrush(palette.windowBackground);
     RECT rcBar = { dx, dy, dx + pw, dy + dwBarH };
     FillRect(memDC, &rcBar, hBgBrush);
     DeleteObject(hBgBrush);
 
-    // White container
-    HBRUSH hContainerBrush = CreateSolidBrush(RGB(255, 255, 255));
-    HPEN hContainerPen = CreatePen(PS_SOLID, 1, RGB(235, 235, 235));
+    HBRUSH hContainerBrush = CreateSolidBrush(palette.containerBackground);
+    HPEN hContainerPen = CreatePen(PS_SOLID, 1, palette.containerBorder);
     HPEN hOldPen = (HPEN)SelectObject(memDC, hContainerPen);
     HBRUSH hOldBrush = (HBRUSH)SelectObject(memDC, hContainerBrush);
     RoundRect(memDC, dx, dy + dwContainerT, dx + pw, dy + dwContainerT + dwContainerH,
@@ -131,11 +155,11 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
 
     HFONT hOldFont = (HFONT)SelectObject(memDC, hTitleFont);
     SetBkMode(memDC, TRANSPARENT);
-    SetTextColor(memDC, RGB(26, 26, 26));
+    SetTextColor(memDC, palette.textPrimary);
     TextOutW(memDC, dx + dwTitleX, dy + dwTitleY, L"ma", 2);
     SelectObject(memDC, hOldFont);
 
-    HPEN hDividerPen = CreatePen(PS_SOLID, 1, RGB(235, 235, 235));
+    HPEN hDividerPen = CreatePen(PS_SOLID, 1, palette.divider);
     hOldPen = (HPEN)SelectObject(memDC, hDividerPen);
     MoveToEx(memDC, dx + dwDividerX, dy + dwDividerY, nullptr);
     LineTo(memDC, dx + pw - dwDividerRight, dy + dwDividerY);
@@ -148,8 +172,8 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
         int by = dy + dwItemY;
 
         if (i == 0) {
-            HBRUSH hSelectedBrush = CreateSolidBrush(RGB(232, 244, 255));
-            HPEN hSelectedPen = CreatePen(PS_SOLID, 1, RGB(232, 244, 255));
+            HBRUSH hSelectedBrush = CreateSolidBrush(palette.selectedBackground);
+            HPEN hSelectedPen = CreatePen(PS_SOLID, 1, palette.selectedBorder);
             hOldBrush = (HBRUSH)SelectObject(memDC, hSelectedBrush);
             hOldPen = (HPEN)SelectObject(memDC, hSelectedPen);
             RoundRect(memDC, bx, by, bx + dwItemW, by + dwItemH,
@@ -163,7 +187,7 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
         // Index text
         hOldFont = (HFONT)SelectObject(memDC, hBadgeFont);
         SetBkMode(memDC, TRANSPARENT);
-        SetTextColor(memDC, RGB(153, 153, 153));
+        SetTextColor(memDC, palette.textSecondary);
         SIZE numSz;
         GetTextExtentPoint32W(memDC, nums[i], 1, &numSz);
         TextOutW(memDC, bx + dwGap + (dwNumberW - numSz.cx) / 2,
@@ -173,7 +197,7 @@ void SettingsDialog::_DrawPreview(HWND hDlg, DRAWITEMSTRUCT* dis) {
         // Candidate text
         hOldFont = (HFONT)SelectObject(memDC, (i == 0) ? hCandidateSelectedFont : hCandidateFont);
         SetBkMode(memDC, TRANSPARENT);
-        SetTextColor(memDC, RGB(26, 26, 26));
+        SetTextColor(memDC, palette.textPrimary);
         SIZE txtSz;
         GetTextExtentPoint32W(memDC, texts[i], (int)wcslen(texts[i]), &txtSz);
         TextOutW(memDC, bx + dwGap + dwNumberW + dwGap,
@@ -210,6 +234,7 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
         // Font trackbar: 10-28
         SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETRANGE, TRUE, MAKELONG(MIN_FONT_SIZE, MAX_FONT_SIZE));
         SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETPOS, TRUE, (LPARAM)sm.GetFontSize());
+        SetDialogThemeMode(hDlg, sm.GetThemeMode());
 
         _UpdateLabels(hDlg);
         return TRUE;
@@ -235,11 +260,17 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 
     case WM_COMMAND:
         switch (LOWORD(wParam)) {
+        case IDC_THEME_SYSTEM:
+        case IDC_THEME_LIGHT:
+        case IDC_THEME_DARK:
+            InvalidateRect(GetDlgItem(hDlg, IDC_PREVIEW), nullptr, FALSE);
+            return TRUE;
         case IDC_BTN_SAVE: {
             int scalePos = (int)SendDlgItemMessageW(hDlg, IDC_SCALE_TRACKBAR, TBM_GETPOS, 0, 0);
             int fontPos = (int)SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_GETPOS, 0, 0);
             sm.SetScale(scalePos / 100.0f);
             sm.SetFontSize(fontPos);
+            sm.SetThemeMode(GetDialogThemeMode(hDlg));
             sm.Save();
 
             // Broadcast change to all CandidateWindow instances
@@ -252,6 +283,7 @@ INT_PTR CALLBACK SettingsDialog::_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
         case IDC_BTN_RESET:
             SendDlgItemMessageW(hDlg, IDC_SCALE_TRACKBAR, TBM_SETPOS, TRUE, 100);
             SendDlgItemMessageW(hDlg, IDC_FONT_TRACKBAR, TBM_SETPOS, TRUE, DEFAULT_FONT_SIZE);
+            SetDialogThemeMode(hDlg, SettingsManager::ThemeMode::FollowSystem);
             _UpdateLabels(hDlg);
             InvalidateRect(GetDlgItem(hDlg, IDC_PREVIEW), nullptr, FALSE);
             return TRUE;

@@ -3,6 +3,7 @@
 SettingsManager::SettingsManager()
     : _scale(DEFAULT_SCALE)
     , _fontSize(DEFAULT_FONT_SIZE)
+    , _themeMode(ThemeMode::FollowSystem)
 {
 }
 
@@ -42,6 +43,12 @@ void SettingsManager::Load() {
             if ((int)dwVal >= MIN_FONT_SIZE && (int)dwVal <= MAX_FONT_SIZE) _fontSize = (int)dwVal;
         }
 
+        dwSize = sizeof(DWORD);
+        if (RegQueryValueExW(hKey, L"ThemeMode", nullptr, &dwType, (LPBYTE)&dwVal, &dwSize) == ERROR_SUCCESS
+            && dwType == REG_DWORD) {
+            _themeMode = NormalizeThemeModeValue(dwVal);
+        }
+
         RegCloseKey(hKey);
     }
 }
@@ -55,6 +62,9 @@ void SettingsManager::Save() {
 
         DWORD dwFont = (DWORD)_fontSize;
         RegSetValueExW(hKey, L"FontSize", 0, REG_DWORD, (const BYTE*)&dwFont, sizeof(DWORD));
+
+        DWORD dwThemeMode = (DWORD)_themeMode;
+        RegSetValueExW(hKey, L"ThemeMode", 0, REG_DWORD, (const BYTE*)&dwThemeMode, sizeof(DWORD));
 
         RegCloseKey(hKey);
     }

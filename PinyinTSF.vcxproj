@@ -102,6 +102,7 @@
     <ClCompile Include="src\Composition.cpp" />
     <ClCompile Include="src\EditSession.cpp" />
     <ClCompile Include="src\CandidateWindow.cpp" />
+    <ClCompile Include="src\CandidateTheme.cpp" />
     <ClCompile Include="src\PinyinEngine.cpp" />
     <ClCompile Include="src\PinyinCompositionState.cpp" />
     <ClCompile Include="src\SettingsManager.cpp" />
@@ -115,6 +116,7 @@
     <ClInclude Include="src\KeyEventLogic.h" />
     <ClInclude Include="src\EditSession.h" />
     <ClInclude Include="src\CandidateWindow.h" />
+    <ClInclude Include="src\CandidateTheme.h" />
     <ClInclude Include="src\PinyinEngine.h" />
     <ClInclude Include="src\PinyinCompositionState.h" />
     <ClInclude Include="src\resource.h" />

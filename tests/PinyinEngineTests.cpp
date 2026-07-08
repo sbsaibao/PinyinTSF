@@ -2,6 +2,7 @@
 #include "PinyinCompositionState.h"
 #include "TrayIcon.h"
 #include "KeyEventLogic.h"
+#include "SettingsManager.h"
 
 #include <iostream>
 #include <string>
@@ -92,6 +93,16 @@ int wmain() {
         KeyEventLogic::ShouldEatKeyDown(VK_SPACE, true, true, 5, false, false, false), true);
     ExpectBool(L"space is not eaten without candidates",
         KeyEventLogic::ShouldEatKeyDown(VK_SPACE, true, false, 0, false, false, false), false);
+    ExpectBool(L"follow system resolves to dark when system dark",
+        SettingsManager::ResolveEffectiveDarkMode(SettingsManager::ThemeMode::FollowSystem, true), true);
+    ExpectBool(L"follow system resolves to light when system light",
+        SettingsManager::ResolveEffectiveDarkMode(SettingsManager::ThemeMode::FollowSystem, false), false);
+    ExpectBool(L"light override resolves to light",
+        SettingsManager::ResolveEffectiveDarkMode(SettingsManager::ThemeMode::Light, true), false);
+    ExpectBool(L"dark override resolves to dark",
+        SettingsManager::ResolveEffectiveDarkMode(SettingsManager::ThemeMode::Dark, false), true);
+    ExpectBool(L"invalid stored theme falls back to follow system",
+        SettingsManager::NormalizeThemeModeValue(99) == SettingsManager::ThemeMode::FollowSystem, true);
 
     ExpectVectorEqual(L"segments nihao", engine.SegmentInput(L"nihao"), { L"ni", L"hao" });
     ExpectVectorEqual(L"segments zhinengti", engine.SegmentInput(L"zhinengti"), { L"zhi", L"neng", L"ti" });

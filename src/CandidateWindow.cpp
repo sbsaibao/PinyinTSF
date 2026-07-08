@@ -2,20 +2,13 @@
 #include <stdio.h>
 
 namespace {
-    COLORREF BlendWithWhite(COLORREF color, int alpha) {
-        const int invAlpha = 255 - alpha;
-        const int r = (GetRValue(color) * alpha + 255 * invAlpha + 127) / 255;
-        const int g = (GetGValue(color) * alpha + 255 * invAlpha + 127) / 255;
-        const int b = (GetBValue(color) * alpha + 255 * invAlpha + 127) / 255;
-        return RGB(r, g, b);
-    }
-
     void DrawShadowRoundRect(HDC hdc, const RECT& rc, int radius, int offsetY,
-                             int blurRadius, int maxAlpha) {
+                             int blurRadius, int maxAlpha, const CandidateThemePalette& palette) {
         for (int i = blurRadius; i >= 1; --i) {
             const int alpha = (maxAlpha * (blurRadius - i + 1)) / (blurRadius * blurRadius);
-            HPEN hPen = CreatePen(PS_SOLID, 1, BlendWithWhite(RGB(0, 0, 0), alpha));
-            HBRUSH hBrush = CreateSolidBrush(BlendWithWhite(RGB(0, 0, 0), alpha));
+            COLORREF shadow = CandidateTheme::BlendColor(palette.shadowColor, palette.windowBackground, alpha);
+            HPEN hPen = CreatePen(PS_SOLID, 1, shadow);
+            HBRUSH hBrush = CreateSolidBrush(shadow);
             HGDIOBJ hOldPen = SelectObject(hdc, hPen);
             HGDIOBJ hOldBrush = SelectObject(hdc, hBrush);
 
@@ -69,6 +62,7 @@ CCandidateWindow::CCandidateWindow()
     , _hBgBrush(nullptr)
     , _hContainerBrush(nullptr)
     , _hSelectedBrush(nullptr)
+    , _darkMode(false)
     , _selectedIndex(0)
     , _width(SettingsManager::Instance().MinWidth())
     , _height(SettingsManager::Instance().WindowHeight())
@@ -115,14 +109,7 @@ BOOL CCandidateWindow::Create(HINSTANCE hInst) {
 
     // Create fonts from current settings
     _CreateFonts();
-
-    // Cache GDI objects for painting
-    _hContainerBorderPen = CreatePen(PS_SOLID, 1, CW_COLOR_CONTAINER_BORDER);
-    _hDividerPen = CreatePen(PS_SOLID, 1, CW_COLOR_CONTAINER_BORDER);
-    _hSelectedBorderPen = CreatePen(PS_SOLID, 1, CW_COLOR_SELECTED_BORDER);
-    _hBgBrush = CreateSolidBrush(CW_COLOR_BG);
-    _hContainerBrush = CreateSolidBrush(CW_COLOR_CONTAINER);
-    _hSelectedBrush = CreateSolidBrush(CW_COLOR_SELECTED_BG);
+    _RefreshThemeResources();
 
     return TRUE;
 }
@@ -135,12 +122,7 @@ void CCandidateWindow::Destroy() {
     if (_hFontTitle) { DeleteObject(_hFontTitle); _hFontTitle = nullptr; }
     if (_hFontCandidate) { DeleteObject(_hFontCandidate); _hFontCandidate = nullptr; }
     if (_hFontCandidateSelected) { DeleteObject(_hFontCandidateSelected); _hFontCandidateSelected = nullptr; }
-    if (_hContainerBorderPen) { DeleteObject(_hContainerBorderPen); _hContainerBorderPen = nullptr; }
-    if (_hDividerPen) { DeleteObject(_hDividerPen); _hDividerPen = nullptr; }
-    if (_hSelectedBorderPen) { DeleteObject(_hSelectedBorderPen); _hSelectedBorderPen = nullptr; }
-    if (_hBgBrush) { DeleteObject(_hBgBrush); _hBgBrush = nullptr; }
-    if (_hContainerBrush) { DeleteObject(_hContainerBrush); _hContainerBrush = nullptr; }
-    if (_hSelectedBrush) { DeleteObject(_hSelectedBrush); _hSelectedBrush = nullptr; }
+    _ReleaseThemeResources();
     if (_hwnd) { DestroyWindow(_hwnd); _hwnd = nullptr; }
 }
 
@@ -151,12 +133,14 @@ void CCandidateWindow::Destroy() {
 void CCandidateWindow::Show(POINT pt) {
     if (!_hwnd) return;
 
+    _RefreshThemeResources();
     _CalculateWindowSize();
     _UpdateWindowRgn();
 
     SettingsManager& sm = SettingsManager::Instance();
-    pt.x -= sm.ShadowPadding();
-    pt.y -= sm.ShadowPadding();
+    int shadowPad = _GetShadowPadding();
+    pt.x -= shadowPad;
+    pt.y -= shadowPad;
     _AdjustWindowPosition(pt);
 
     SetWindowPos(_hwnd, HWND_TOPMOST, pt.x, pt.y, _width, _height,
@@ -285,7 +269,7 @@ void CCandidateWindow::_OnPaint(HDC hdc) {
     int h = rcClient.bottom;
 
     SettingsManager& sm = SettingsManager::Instance();
-    const int shadowPad = sm.ShadowPadding();
+    const int shadowPad = _GetShadowPadding();
     const int contentW = w - shadowPad * 2;
 
     // Create memory DC for double buffering
@@ -299,15 +283,16 @@ void CCandidateWindow::_OnPaint(HDC hdc) {
     RECT rcFull = { 0, 0, w, h };
     FillRect(memDC, &rcFull, _hBgBrush);
 
-    // Layer 2: draw Figma's two soft shadows around the visible candidate bar.
     RECT rcContainer = {
         shadowPad,
         shadowPad + sm.ContainerTop(),
         shadowPad + contentW,
         shadowPad + sm.ContainerTop() + sm.ContainerHeight()
     };
-    DrawShadowRoundRect(memDC, rcContainer, sm.WindowRadius(), 2, 12, 20);
-    DrawShadowRoundRect(memDC, rcContainer, sm.WindowRadius(), 6, 20, 10);
+    if (shadowPad > 0) {
+        DrawShadowRoundRect(memDC, rcContainer, sm.WindowRadius(), 2, 12, 20, _palette);
+        DrawShadowRoundRect(memDC, rcContainer, sm.WindowRadius(), 6, 20, 10, _palette);
+    }
 
     // Layer 3: draw rounded container
     SelectObject(memDC, _hContainerBrush);
@@ -343,7 +328,7 @@ void CCandidateWindow::_DrawPinyinText(HDC hdc, int x, int y) {
 
     HFONT hOldFont = (HFONT)SelectObject(hdc, _hFontTitle);
     SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, CW_COLOR_TEXT_PRIMARY);
+    SetTextColor(hdc, _palette.textPrimary);
     TextOutW(hdc, x, y, _pinyinText.c_str(), (int)_pinyinText.size());
     SelectObject(hdc, hOldFont);
 }
@@ -385,7 +370,7 @@ void CCandidateWindow::_DrawIndex(HDC hdc, int x, int y, int index) {
 
     HFONT hOldFont = (HFONT)SelectObject(hdc, _hFontBadge);
     SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, CW_COLOR_TEXT_SECONDARY);
+    SetTextColor(hdc, _palette.textSecondary);
 
     const wchar_t* numText = nullptr;
     int numLen = 0;
@@ -429,7 +414,7 @@ void CCandidateWindow::_DrawCandidates(HDC hdc, int x, int y) {
         HFONT hTextFont = (i == _selectedIndex) ? _hFontCandidateSelected : _hFontCandidate;
         HFONT hOldFont = (HFONT)SelectObject(hdc, hTextFont);
         const std::wstring& text = _candidates[i];
-        SetTextColor(hdc, CW_COLOR_TEXT_PRIMARY);
+        SetTextColor(hdc, _palette.textPrimary);
 
         SIZE textSize;
         GetTextExtentPoint32W(hdc, text.c_str(), (int)text.size(), &textSize);
@@ -454,8 +439,9 @@ void CCandidateWindow::_CalculateWindowSize() {
     int totalWidth = sm.PaddingLeft() * 2 + sm.ItemWidth() * count;
 
     int contentWidth = (totalWidth > sm.MinWidth()) ? totalWidth : sm.MinWidth();
-    _width = contentWidth + sm.ShadowPadding() * 2;
-    _height = sm.OuterHeight();
+    int shadowPad = _GetShadowPadding();
+    _width = contentWidth + shadowPad * 2;
+    _height = sm.WindowHeight() + shadowPad * 2;
 }
 
 // ================================================================
@@ -464,9 +450,10 @@ void CCandidateWindow::_CalculateWindowSize() {
 void CCandidateWindow::_UpdateWindowRgn() {
     if (!_hwnd) return;
     SettingsManager& sm = SettingsManager::Instance();
-    HRGN hRgn = CreateRoundRectRgn(0, 0, _width, sm.OuterHeight(),
-                                    (sm.WindowRadius() + sm.ShadowPadding()) * 2,
-                                    (sm.WindowRadius() + sm.ShadowPadding()) * 2);
+    int shadowPad = _GetShadowPadding();
+    HRGN hRgn = CreateRoundRectRgn(0, 0, _width, _height,
+                                    (sm.WindowRadius() + shadowPad) * 2,
+                                    (sm.WindowRadius() + shadowPad) * 2);
     SetWindowRgn(_hwnd, hRgn, TRUE);
 }
 
@@ -540,13 +527,41 @@ void CCandidateWindow::_CreateFonts() {
 void CCandidateWindow::ReloadSettings() {
     SettingsManager::Instance().Load();
     _CreateFonts();
+    _RefreshThemeResources();
 
     if (_hwnd && IsWindowVisible(_hwnd)) {
-        _height = SettingsManager::Instance().OuterHeight();
         _CalculateWindowSize();
         _UpdateWindowRgn();
         SetWindowPos(_hwnd, nullptr, 0, 0, _width, _height,
                      SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
         _Invalidate();
     }
+}
+
+void CCandidateWindow::_RefreshThemeResources() {
+    SettingsManager& sm = SettingsManager::Instance();
+    _darkMode = CandidateTheme::ResolveDarkMode(sm.GetThemeMode());
+    _palette = CandidateTheme::GetPalette(_darkMode);
+
+    _ReleaseThemeResources();
+
+    _hContainerBorderPen = CreatePen(PS_SOLID, 1, _palette.containerBorder);
+    _hDividerPen = CreatePen(PS_SOLID, 1, _palette.divider);
+    _hSelectedBorderPen = CreatePen(PS_SOLID, 1, _palette.selectedBorder);
+    _hBgBrush = CreateSolidBrush(_palette.windowBackground);
+    _hContainerBrush = CreateSolidBrush(_palette.containerBackground);
+    _hSelectedBrush = CreateSolidBrush(_palette.selectedBackground);
+}
+
+void CCandidateWindow::_ReleaseThemeResources() {
+    if (_hContainerBorderPen) { DeleteObject(_hContainerBorderPen); _hContainerBorderPen = nullptr; }
+    if (_hDividerPen) { DeleteObject(_hDividerPen); _hDividerPen = nullptr; }
+    if (_hSelectedBorderPen) { DeleteObject(_hSelectedBorderPen); _hSelectedBorderPen = nullptr; }
+    if (_hBgBrush) { DeleteObject(_hBgBrush); _hBgBrush = nullptr; }
+    if (_hContainerBrush) { DeleteObject(_hContainerBrush); _hContainerBrush = nullptr; }
+    if (_hSelectedBrush) { DeleteObject(_hSelectedBrush); _hSelectedBrush = nullptr; }
+}
+
+int CCandidateWindow::_GetShadowPadding() const {
+    return _darkMode ? 0 : SettingsManager::Instance().ShadowPadding();
 }

@@ -38,6 +38,12 @@
 
 class SettingsManager {
 public:
+    enum class ThemeMode : DWORD {
+        FollowSystem = 0,
+        Light = 1,
+        Dark = 2,
+    };
+
     static SettingsManager& Instance();
 
     void Load();
@@ -47,6 +53,33 @@ public:
     void  SetScale(float s);
     int   GetFontSize() const { return _fontSize; }
     void  SetFontSize(int fs);
+    ThemeMode GetThemeMode() const { return _themeMode; }
+    void SetThemeMode(ThemeMode mode) { _themeMode = NormalizeThemeModeValue((DWORD)mode); }
+
+    static ThemeMode NormalizeThemeModeValue(DWORD value) {
+        switch (value) {
+        case (DWORD)ThemeMode::FollowSystem:
+            return ThemeMode::FollowSystem;
+        case (DWORD)ThemeMode::Light:
+            return ThemeMode::Light;
+        case (DWORD)ThemeMode::Dark:
+            return ThemeMode::Dark;
+        default:
+            return ThemeMode::FollowSystem;
+        }
+    }
+
+    static bool ResolveEffectiveDarkMode(ThemeMode mode, bool systemDark) {
+        switch (mode) {
+        case ThemeMode::Light:
+            return false;
+        case ThemeMode::Dark:
+            return true;
+        case ThemeMode::FollowSystem:
+        default:
+            return systemDark;
+        }
+    }
 
     // Computed layout values
     int WindowHeight()    const { return _round(BASE_WINDOW_HEIGHT * _scale); }
@@ -81,6 +114,7 @@ private:
 
     float _scale;
     int   _fontSize;
+    ThemeMode _themeMode;
 };
 
 #endif // SETTINGS_MANAGER_H

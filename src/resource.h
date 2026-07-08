@@ -21,3 +21,6 @@
 #define IDC_BTN_SAVE            1005
 #define IDC_BTN_RESET           1006
 #define IDC_PREVIEW             1007
+#define IDC_THEME_SYSTEM        1008
+#define IDC_THEME_LIGHT         1009
+#define IDC_THEME_DARK          1010
